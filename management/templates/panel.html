@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <main class="container" style="max-width:600px;">
+        <header class="card card-body">
+            <h1>Panel de administración</h1>
+        </header>
+
+        <ul>
+            <li><a href="/management/template">Descargar plantilla (excel)</a></li>
+            <li><a href="/management/upload">Subir archivo</a></li>
+            <li><a href="/management/add_user">Añadir usuario</a></li>
+        </ul>
+    </main>
+{% endblock %}

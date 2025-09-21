@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <main class="container" style="max-width:600px;">
+        <h1>Subir archivo de usuarios</h1>
+
+        <form method="post" action="" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+
+            <button type="submit">Submit</button>
+        </form>
+    </main>
+{% endblock %}

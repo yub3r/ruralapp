@@ -47,14 +47,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # "debug_toolbar",
     'tasks',
+    'management',
     # 'tools',
     # 'formus',
     'ruralapp',
     'crispy_forms',
     'crispy_bootstrap5',
     'import_export',
-    'django_celery_beat',
-    'django_celery_results',
+    #'django_celery_beat',
+    #'django_celery_results',
     #'pwa',
 ]
 
@@ -108,6 +109,18 @@ WSGI_APPLICATION = 'djangocrud.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#    "default": {
+#        "ENGINE": 'django.db.backends.postgresql_psycopg2',
+#        "NAME": "postgres",
+#        "USER": "postgres",
+#        "PASSWORD": "root",
+#        "HOST": "localhost",
+#        "PORT": "5432",
+#    }
+# }
+
+
 DATABASES = {
    "default": {
        "ENGINE": 'django.db.backends.postgresql_psycopg2',
@@ -118,7 +131,6 @@ DATABASES = {
        "PORT": "5432",
    }
 }
-
 
 # DATABASES = {
 #     "default": {

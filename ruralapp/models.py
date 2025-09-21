@@ -14,6 +14,7 @@ from .utils import calculate_time_range
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     menu = models.BooleanField(default=False, verbose_name='Usuario habilitado para ordenar')
+    is_admin = models.BooleanField(default = False, verbose_name = 'User allowed to administrate business')
 
     def __str__(self):
         return self.user.get_full_name()

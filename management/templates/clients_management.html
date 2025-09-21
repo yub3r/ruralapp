@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <main class="container" style="max-width:600px;">
+        <header class="card card-body">
+            <h1>Lista de clientes</h1>
+        </header>
+
+        <ul>
+            {% for i in clients %}
+                <li>{{ i.name }}</li>
+            {% endfor %}
+        </ul>
+
+        <ul>
+            <li><a href="/management/create">Añadir cliente</a></li>
+        </ul>
+    </main>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <main class="container" style="max-width:600px;">
+        <h1>Crear cliente</h1>
+
+        <form method="post" action="" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="text" name="name" id="" placeholder="Nombre de la empresa">
+
+            <button type="submit">Submit</button>
+        </form>
+    </main>
+{% endblock %}

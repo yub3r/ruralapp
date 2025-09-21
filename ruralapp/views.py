@@ -1,10 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
-from django.db.models import Q
+from django.urls import reverse
 import json
-from django.db.models import Max
+from django.db.models import Max, Q
 from collections import defaultdict, OrderedDict, Counter
 from .models import Salad, OtherDish, WeeklyMenu, Order, SideDish, AppState
 from datetime import datetime, time, timedelta
@@ -161,13 +161,16 @@ def order_view(request):
     start_date, end_date = calculate_time_range()
 
     # Verificar si el usuario ya hizo un pedido hoy (excepto admins/superusuarios)
-    if not (request.user.is_staff and request.user.is_superuser):
+    if not request.user.is_superuser:
         user_orders = Order.objects.filter(
             user=request.user,
             order_date__range=(start_date, end_date)
         )
         if user_orders.exists():
-            return JsonResponse({'success': False, 'error': "Ya has realizado un pedido hoy. No puedes realizar otro."})
+
+            url = reverse('ruralapp') + '?pedido_existente=1'
+            return HttpResponseRedirect(url)
+
 
     menu_day_name, displayed_week = get_menu_day_and_week()
     try:
@@ -182,6 +185,7 @@ def order_view(request):
     other_dishes = OtherDish.objects.values('id', 'name', 'plus_side')
     side_dishes = SideDish.objects.all()
 
+
     if request.method == 'POST':
         main_dish = request.POST.get('main_dish')
         salad_id = request.POST.get('salad')
@@ -189,9 +193,6 @@ def order_view(request):
         side_dish_id = request.POST.get('side_dish')
         comments = request.POST.get('comments', '')
         repeat_for_week = request.POST.get('repeat_for_week') == 'on'
-
-        if not main_dish and not salad_id and not other_dish_id and not side_dish_id:
-            return JsonResponse({'success': False, 'error': "Debe seleccionar al menos un plato principal, una ensalada, un plato adicional o una guarnición."})
 
         # Desactivar repetición en otros pedidos
         if repeat_for_week:
@@ -289,64 +290,6 @@ def edit_order(request, order_id):
         'side_dishes': side_dishes,
         'dessert': dessert,
     })
-
-# @login_required
-# def edit_order(request, order_id):
-#     menu_day_name, displayed_week = get_menu_day_and_week()
-    
-#     try:
-#         daily_menu = WeeklyMenu.objects.get(week=displayed_week, day=menu_day_name)
-#         main_dishes = [daily_menu.main_dish_1, daily_menu.main_dish_2]
-#         dessert = daily_menu.dessert
-#     except WeeklyMenu.DoesNotExist:
-#         main_dishes = []
-#         dessert = "No disponible"
-
-#     salads = Salad.objects.all()
-#     other_dishes = OtherDish.objects.values('id', 'name', 'plus_side')
-#     side_dishes = SideDish.objects.all()
-
-#     order = get_object_or_404(Order, id=order_id, user=request.user)
-
-#     # Buscar la orden original si la orden actual es una copia generada por Celery
-#     original_order = Order.objects.filter(user=request.user, repeat_for_week=True).first()
-#     if original_order and order.order_date != original_order.order_date:
-#         order = original_order  # Editar la orden original en lugar de la copia del día
-
-#     if request.method == 'POST':
-#         main_dish = request.POST.get('main_dish')
-#         salad_id = request.POST.get('salad')
-#         other_dish_id = request.POST.get('other_dish')
-#         side_dish_id = request.POST.get('side_dish')
-#         comments = request.POST.get('comments', '')
-
-#         # Manejo del checkbox repeat_for_week
-#         repeat_for_week = 'repeat_for_week' in request.POST  
-
-#         # Evitar múltiples órdenes repetitivas
-#         if repeat_for_week:
-#             # Si hay otra orden con repeat_for_week=True y no es la actual, desactivarla
-#             Order.objects.filter(user=request.user, repeat_for_week=True).exclude(id=order.id).update(repeat_for_week=False)
-
-#         order.repeat_for_week = repeat_for_week
-#         order.main_dish = main_dish
-#         order.salad = Salad.objects.get(id=salad_id) if salad_id else None
-#         order.other_dish = OtherDish.objects.get(id=other_dish_id) if other_dish_id else None
-#         order.side_dish = SideDish.objects.get(id=side_dish_id) if side_dish_id else None
-#         order.comments = comments
-#         order.save()
-
-#         return JsonResponse({'success': True})
-
-#     return render(request, 'edit_order.html', {
-#         'order': order,
-#         'main_dishes': main_dishes,
-#         'salads': salads,
-#         'other_dishes': other_dishes,
-#         'side_dishes': side_dishes,
-#         'dessert': dessert,
-#         'menu_day_name': menu_day_name
-#     })
 
 
 

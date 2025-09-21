@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <main class="container" style="max-width:600px;">
+        <h1>Crear usuario</h1>
+
+        <form method="post" action="" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="text" name="first_name" id="" placeholder="Nombre">
+            <input type="text" name="last_name" id="" placeholder="Apellido">
+            <input type="email" name="email" id="" placeholder="Email">
+            <input type="password" name="password" placeholder="Contraseña">
+
+            <button type="submit">Submit</button>
+        </form>
+    </main>
+{% endblock %}

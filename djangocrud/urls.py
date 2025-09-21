@@ -10,14 +10,15 @@ from django.contrib.auth.decorators import user_passes_test
 urlpatterns = [
     path('', views.home_view, name='home'),
     path('ruralapp/', include("ruralapp.urls")),
-    # path('crypto-prices/', views.crypto_prices, name='crypto_prices'),
-    # path('', views.crypto_prices, name='crypto_prices'),
+    path('management/', include("management.urls")),
     path("about", views.sobremi, name="About"),
     path('admin/', admin.site.urls, name="Admin"),
     path('signup/', views.signup, name='signup'),
     path('logout/', views.signout, name='logout'),
     path('signin/', views.signin, name='signin'),
 
+    # path('crypto-prices/', views.crypto_prices, name='crypto_prices'),
+    # path('', views.crypto_prices, name='crypto_prices'),
 
     re_path(r'^favicon\.ico$', views.favicon_view),
     path('favicon.ico',RedirectView.as_view(url='/media/favicon.ico')),
