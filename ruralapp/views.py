@@ -6,7 +6,13 @@ from django.urls import reverse
 import json
 from django.db.models import Max, Q
 from collections import defaultdict, OrderedDict, Counter
-from .models import Salad, OtherDish, WeeklyMenu, Order, SideDish, AppState
+from .models import Salad, OtherDish, WeeklyMenu, Order, SideDish, AppState, Organization, Membership
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db import IntegrityError
+from django.http import HttpResponseForbidden
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
 from datetime import datetime, time, timedelta
 import logging
 from django.utils.timezone import localtime, now as timezone_now
@@ -17,7 +23,7 @@ from django.utils.timezone import localtime, now as timezone_now
 def mis_ordenes(request):
     start_date, end_date = calculate_time_range()
     orders = Order.objects.filter(user=request.user).order_by('-order_date')
-    return render(request, 'misordenes.html', {'orders': orders, 'start_date': start_date, 'end_date': end_date})
+    return render(request, 'Clients/misordenes.html', {'orders': orders, 'start_date': start_date, 'end_date': end_date})
 
 
 logger = logging.getLogger(__name__)
@@ -148,7 +154,7 @@ def ruralapp(request):
         else:
             order.show_auto = False
 
-    return render(request, 'ruralapp.html', {
+    return render(request, 'Restaurant/ruralapp.html', {
         'orders': recent_orders,
         'total_orders': total_orders,
         'error_message': error_message,
@@ -221,7 +227,7 @@ def order_view(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
-    return render(request, 'order.html', {
+    return render(request, 'Clients/order.html', {
         'main_dishes': main_dishes,
         'salads': salads,
         'other_dishes': other_dishes,
@@ -282,7 +288,7 @@ def edit_order(request, order_id):
     other_dishes = OtherDish.objects.values('id', 'name', 'plus_side')
     side_dishes = SideDish.objects.all()
 
-    return render(request, 'edit_order.html', {
+    return render(request, 'Clients/edit_order.html', {
         'order': order,
         'main_dishes': main_dishes,
         'salads': salads,
@@ -384,13 +390,196 @@ def resumen_pedidos(request):
 
     # Renderizar vista
     if "generate_whatsapp" in request.GET:
-        return render(request, 'whatsapp_preview.html', {
+        return render(request, 'Clients/whatsapp_preview.html', {
             'whatsapp_message': whatsapp_message,
         })
 
-    return render(request, 'resumen_pedidos.html', {
+    return render(request, 'Clients/resumen_pedidos.html', {
         'summary_list': summary_list,
         'current_day': now.strftime('%A'),
         'total_orders': total_orders,
     })
+
+
+@login_required
+def restoboard(request):
+    """Dashboard para Restaurant_Manager.
+    Permite crear nuevas organizaciones de tipo CLIENT y listar existentes.
+    """
+    # Control de acceso básico (superusers también pueden entrar)
+    if not (request.user.is_superuser or request.user.groups.filter(name="Restaurant_Manager").exists()):
+        return HttpResponseForbidden("No autorizado")
+
+    creation_error = None
+    creation_success = False
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if not name:
+            creation_error = "El nombre es requerido"
+        else:
+            try:
+                Organization.objects.create(name=name, type=Organization.OrgType.CLIENT)
+                creation_success = True
+            except IntegrityError:
+                creation_error = "Ya existe una organización con ese nombre"
+
+    clients = Organization.objects.filter(type=Organization.OrgType.CLIENT).order_by('-created_at')[:50]
+
+    return render(request, 'Restaurant/restoboard.html', {
+        'clients': clients,
+        'creation_error': creation_error,
+        'creation_success': creation_success,
+    })
+
+
+@login_required
+def restaurant_clients(request):
+    """Pantalla de gestión de clientes (organizaciones tipo CLIENT)."""
+    if not (request.user.is_superuser or request.user.groups.filter(name="Restaurant_Manager").exists()):
+        return HttpResponseForbidden("No autorizado")
+
+    creation_error = None
+    creation_success = False
+
+    # Soporte creación AJAX
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        name = request.POST.get('name', '').strip()
+        if not name:
+            return JsonResponse({'ok': False, 'error': 'El nombre es requerido'}, status=400)
+        try:
+            org = Organization.objects.create(name=name, type=Organization.OrgType.CLIENT)
+            return JsonResponse({
+                'ok': True,
+                'id': org.id,
+                'name': org.name,
+                'created_at': org.created_at.strftime('%d/%m %H:%M'),
+                'is_active': org.is_active,
+            })
+        except IntegrityError:
+            return JsonResponse({'ok': False, 'error': 'Ya existe una organización con ese nombre'}, status=400)
+
+    # Búsqueda
+    q = request.GET.get('q', '').strip()
+    base_qs = Organization.objects.filter(type=Organization.OrgType.CLIENT)
+    if q:
+        base_qs = base_qs.filter(name__icontains=q)
+    clients = base_qs.order_by('-created_at')[:300]
+
+    return render(request, 'Restaurant/clientes.html', {
+        'clients': clients,
+        'q': q,
+        'creation_error': creation_error,
+        'creation_success': creation_success,
+    })
+
+
+@login_required
+def new_client(request):
+    if not (request.user.is_superuser or request.user.groups.filter(name="Restaurant_Manager").exists()):
+        return HttpResponseForbidden("No autorizado")
+    context = {}
+    if request.method == 'POST':
+        org_name = request.POST.get('org_name', '').strip()
+        admin_first = request.POST.get('admin_first', '').strip()
+        admin_last = request.POST.get('admin_last', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        password = request.POST.get('password', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        errors = []
+        if not org_name:
+            errors.append('Nombre de la organización es requerido')
+        if not admin_first:
+            errors.append('Nombre del admin requerido')
+        if not admin_last:
+            errors.append('Apellido del admin requerido')
+        if not password:
+            errors.append('Contraseña requerida')
+        if errors:
+            context['errors'] = errors
+        else:
+            with transaction.atomic():
+                org = Organization.objects.create(name=org_name, type=Organization.OrgType.CLIENT, phone_number=phone, is_active=is_active)
+                username = (admin_first + admin_last).lower()
+                base_username = username
+                i = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{i}"
+                    i += 1
+                user = User.objects.create_user(
+                    username=username,
+                    first_name=admin_first,
+                    last_name=admin_last,
+                    password=password,
+                    is_active=is_active
+                )
+                # Asegurar unicidad de Client_Admin por organización
+                Membership.objects.create(user=user, organization=org, role=Membership.Role.CLIENT_ADMIN)
+            return redirect('restaurant_clients')
+    return render(request, 'Restaurant/new_client.html', context)
+
+
+@login_required
+def edit_client(request, org_id: int):
+    if not (request.user.is_superuser or request.user.groups.filter(name="Restaurant_Manager").exists()):
+        return HttpResponseForbidden("No autorizado")
+    org = get_object_or_404(Organization, pk=org_id, type=Organization.OrgType.CLIENT)
+    # Obtener admin (puede no existir todavía)
+    admin_membership = org.memberships.filter(role=Membership.Role.CLIENT_ADMIN).select_related('user').first()
+    admin_user = admin_membership.user if admin_membership else None
+    context = { 'org': org, 'admin_user': admin_user }
+    if request.method == 'POST':
+        if 'delete' in request.POST:
+            with transaction.atomic():
+                # Eliminar user admin primero (opcional conservar?)
+                if admin_user:
+                    admin_user.delete()
+                org.delete()
+            return redirect('restaurant_clients')
+        org_name = request.POST.get('org_name', '').strip()
+        admin_first = request.POST.get('admin_first', '').strip()
+        admin_last = request.POST.get('admin_last', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        password = request.POST.get('password', '').strip()
+        is_active = request.POST.get('is_active') == 'on'
+        errors = []
+        if not org_name:
+            errors.append('Nombre de la organización es requerido')
+        if not admin_first:
+            errors.append('Nombre del admin requerido')
+        if not admin_last:
+            errors.append('Apellido del admin requerido')
+        if errors:
+            context['errors'] = errors
+        else:
+            with transaction.atomic():
+                org.name = org_name
+                org.phone_number = phone
+                org.is_active = is_active
+                org.save()
+                # Crear o actualizar admin
+                if not admin_user:
+                    username = (admin_first + admin_last).lower()
+                    base_username = username
+                    i = 1
+                    while User.objects.filter(username=username).exists():
+                        username = f"{base_username}{i}"
+                        i += 1
+                    admin_user = User.objects.create_user(
+                        username=username,
+                        first_name=admin_first,
+                        last_name=admin_last,
+                        password=password or User.objects.make_random_password(),
+                        is_active=is_active
+                    )
+                    Membership.objects.create(user=admin_user, organization=org, role=Membership.Role.CLIENT_ADMIN)
+                else:
+                    admin_user.first_name = admin_first
+                    admin_user.last_name = admin_last
+                    if password:
+                        admin_user.set_password(password)
+                    admin_user.is_active = is_active
+                    admin_user.save()
+            return redirect('restaurant_clients')
+    return render(request, 'Restaurant/edit_client.html', context)
 

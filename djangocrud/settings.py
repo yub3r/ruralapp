@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     # "debug_toolbar",
     'tasks',
     'management',
+    'notifications',
     # 'tools',
     # 'formus',
     'ruralapp',
@@ -76,6 +77,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     #"debug_toolbar.middleware.DebugToolbarMiddleware",
     'djangocrud.restrict_access_middleware.RestrictAccessMiddleware',
+    'ruralapp.middleware.CurrentOrganizationMiddleware',
 ]
 
 ROOT_URLCONF = 'djangocrud.urls'

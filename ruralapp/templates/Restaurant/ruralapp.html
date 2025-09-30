@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% comment %}Dashboard restaurante (normalizado: se eliminaron snippets para simplificar).{% endcomment %}
+{% block js %}
+<script>
+// JS placeholder (antes en _ruralapp_js.html). Añadir lógica específica restaurante aquí.
+</script>
+{% endblock %}
+{% block content %}
+<main class="container" style="max-width:600px;">
+	<section class="card card-body">
+		<header>
+			<h1 class="display-6 text-center">Ruralapp (Restaurant)</h1>
+		</header>
+		<div class="alert alert-info">Versión preliminar para panel restaurante. Ajustar según futuras funcionalidades.</div>
+		<a href="{% url 'order' %}" class="btn btn-primary w-100 me-3" style="margin-top:7px;">Hacer Pedido (Cliente)</a>
+		<a href="{% url 'mis_ordenes' %}" class="btn btn-secondary w-100" style="margin-top:7px;">Ver/Editar Mis Órdenes</a>
+		<a href="{% url 'resumen_pedidos' %}" class="btn btn-success w-100" style="margin-top:7px;">Resumen de Pedidos</a>
+	</section>
+</main>
+{% endblock %}

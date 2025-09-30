@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="container" style="max-width:640px;">
+    <section class="card card-body">
+        <h5 class="mb-3">Editar Cliente</h5>
+        {% if errors %}
+        <div class="alert alert-danger py-2">
+            <ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        <form method="post" class="row g-3" autocomplete="off">
+            {% csrf_token %}
+            <div class="col-12">
+                <label class="form-label">Nombre de la Organización / Empresa</label>
+                <input type="text" name="org_name" class="form-control" value="{{ org.name }}" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nombre (Client_Admin)</label>
+                <input type="text" name="admin_first" class="form-control"
+                    value="{{ admin_user.first_name|default:'' }}" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Apellido (Client_Admin)</label>
+                <input type="text" name="admin_last" class="form-control" value="{{ admin_user.last_name|default:'' }}"
+                    required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Número de Teléfono</label>
+                <input type="text" name="phone" class="form-control" value="{{ org.phone_number }}" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Contraseña (dejar vacío para no cambiar)</label>
+                <input type="text" name="password" class="form-control" />
+            </div>
+            <div class="col-12 form-check">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if org.is_active %}checked{% endif %} />
+                <label class="form-check-label" for="is_active">Activo</label>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Actualizar</button>
+                <a class="btn btn-secondary" href="{% url 'restaurant_clients' %}">Cancelar</a>
+                <button class="btn btn-outline-danger" name="delete" value="1" type="submit"
+                    onclick="return confirm('¿Eliminar cliente y su admin?');">Eliminar</button>
+            </div>
+        </form>
+    </section>
+</main>
+{% endblock %}

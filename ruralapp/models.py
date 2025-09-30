@@ -1,4 +1,3 @@
-from datetime import timezone
 from django.db import IntegrityError, models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -41,6 +40,50 @@ class AppState(models.Model):
     current_week = models.IntegerField(default=1)  # Semana actual en el ciclo de 4 semanas
     last_week_advance = models.DateTimeField(null=True, blank=True)  # Última vez que se avanzó la semana
     
+class Organization(models.Model):
+    class OrgType(models.TextChoices):
+        RESTAURANT = "RESTAURANT", "Restaurant"
+        CLIENT = "CLIENT", "Client"
+
+    name = models.CharField(max_length=150, unique=True)
+    type = models.CharField(max_length=20, choices=OrgType.choices)
+    is_active = models.BooleanField(default=True)
+    phone_number = models.CharField(max_length=30, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["type", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.type})"
+
+class Membership(models.Model):
+    class Role(models.TextChoices):
+        GESTION = "GESTION", "Restaurant - Gestión"
+        COCINA = "COCINA", "Restaurant - Cocina"
+        DELIVERY = "DELIVERY", "Restaurant - Delivery"
+        CLIENT_ADMIN = "CLIENT_ADMIN", "Client - Admin"
+        CLIENT_USER = "CLIENT_USER", "Client - User"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="memberships")
+    role = models.CharField(max_length=20, choices=Role.choices)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_memberships")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "organization", "role")
+        indexes = [
+            models.Index(fields=["organization", "role", "is_active"]),
+            models.Index(fields=["user", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} @ {self.organization} [{self.role}]"
+
 class Salad(models.Model):
     name = models.CharField(max_length=100)
 
@@ -84,6 +127,20 @@ class WeeklyMenu(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     order_date = models.DateTimeField(db_index=True, default=timezone.now)
+    client_org = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="client_orders",
+    )
+    restaurant = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="restaurant_orders",
+    )
     main_dish = models.CharField(max_length=100, blank=True, null=True)
     salad = models.ForeignKey('Salad', on_delete=models.SET_NULL, null=True, blank=True)
     other_dish = models.ForeignKey('OtherDish', on_delete=models.SET_NULL, null=True, blank=True)

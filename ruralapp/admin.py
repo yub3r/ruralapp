@@ -4,7 +4,20 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import fields
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Salad, OtherDish, SideDish, WeeklyMenu, Order, WhatsAppGroup, EventLog, GroupNotification, AppState, UserProfile
+from .models import (
+    Salad,
+    OtherDish,
+    SideDish,
+    WeeklyMenu,
+    Order,
+    EventLog,
+    AppState,
+    UserProfile,
+    WhatsAppGroup,
+    GroupNotification,
+    Organization,
+)
+from .models import Membership
 
 
 class SaladAdmin(admin.ModelAdmin):
@@ -46,9 +59,17 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = 'Perfil de usuario'
 
+
+class MembershipInline(admin.TabularInline):
+    model = Membership
+    fk_name = "user"
+    extra = 0
+    fields = ("organization", "role", "is_active")
+    autocomplete_fields = ("organization",)
+
 # Define una clase de administración personalizada
 class UserAdmin(BaseUserAdmin):
-    inlines = (UserProfileInline, )
+    inlines = (UserProfileInline, MembershipInline)
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'menu_status')  # Agrega 'menu_status'
 
     def menu_status(self, obj):
@@ -64,7 +85,49 @@ admin.site.register(OtherDish, OtherDishAdmin)
 admin.site.register(SideDish, SideDishAdmin)
 admin.site.register(WeeklyMenu, WeeklyMenuAdmin)
 admin.site.register(Order, OrderAdmin)
-admin.site.register(WhatsAppGroup, WhatsAppGroupAdmin)
 admin.site.register(EventLog, EventLogAdmin)
-admin.site.register(GroupNotification, GroupNotificationAdmin)
 admin.site.register(AppState, AppStateAdmin)
+
+
+# NOTIFICATIONS section via proxy models
+class WhatsAppGroupProxy(WhatsAppGroup):
+    class Meta:
+        proxy = True
+        verbose_name = "Whats app group"
+        verbose_name_plural = "Whats app groups"
+        app_label = "notifications"
+
+
+class GroupNotificationProxy(GroupNotification):
+    class Meta:
+        proxy = True
+        verbose_name = "Group notification"
+        verbose_name_plural = "Group notifications"
+        app_label = "notifications"
+
+
+@admin.register(WhatsAppGroupProxy)
+class WhatsAppGroupProxyAdmin(WhatsAppGroupAdmin):
+    pass
+
+
+@admin.register(GroupNotificationProxy)
+class GroupNotificationProxyAdmin(GroupNotificationAdmin):
+    pass
+
+
+# Hidden admin for real Organization model to enable autocomplete
+@admin.register(Organization)
+class OrganizationHiddenAdmin(admin.ModelAdmin):
+    search_fields = ("name",)
+
+    def get_model_perms(self, request):
+        return {}
+
+
+@admin.register(Membership)
+class MembershipHiddenAdmin(admin.ModelAdmin):
+    search_fields = ("user__username", "organization__name")
+
+    def get_model_perms(self, request):
+        return {}
